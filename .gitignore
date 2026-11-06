@@ -10,8 +10,11 @@ build/
 
 # Environment Variables & Local Secrets
 .env
-.env.local
-.env.*.local
+.env.*
+backend/.env
+backend/.env.*
+*.env
+*.env.local
 
 # Databases & Runtime Logs
 *.db

@@ -146,9 +146,9 @@ def get_gemini_api_key() -> str:
 def get_gemini_model() -> str:
     """
     Read model name from GEMINI_MODEL environment variable.
-    Defaults to the current stable Flash model: gemini-2.5-flash.
+    Defaults to the verified stable Flash model: gemini-3.5-flash.
     """
-    return os.environ.get("GEMINI_MODEL", "gemini-2.5-flash").strip()
+    return os.environ.get("GEMINI_MODEL", "gemini-3.5-flash").strip()
 
 def get_genai_client(api_key: Optional[str] = None) -> Optional[genai.Client]:
     """Instantiate Google Gen AI SDK Client."""
@@ -193,7 +193,7 @@ async def check_gemini_connection(api_key: Optional[str] = None) -> Dict[str, An
             contents="Confirm Be Bodywise product intelligence connectivity in 3 words.",
             config=types.GenerateContentConfig(
                 temperature=0.1,
-                max_output_tokens=30
+                max_output_tokens=300
             )
         )
         if response and response.text:

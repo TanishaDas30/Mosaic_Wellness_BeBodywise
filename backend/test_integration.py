@@ -1,6 +1,6 @@
 import httpx
 
-client = httpx.Client(base_url="http://127.0.0.1:8000")
+client = httpx.Client(base_url="http://127.0.0.1:8000", timeout=30.0)
 
 # 1. Test Login
 login_res = client.post("/api/auth/login", json={"email": "demo@skinsense.ai", "password": "demo1234"})
