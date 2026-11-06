@@ -41,10 +41,6 @@ export const ExperienceTrackerPage: React.FC = () => {
   // Active AI Report Modal / Card
   const [activeReport, setActiveReport] = useState<ProductExperience | null>(null);
 
-  useEffect(() => {
-    loadData();
-  }, [routineCategory]);
-
   const loadData = async () => {
     setLoading(true);
     try {
@@ -68,6 +64,10 @@ export const ExperienceTrackerPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadData();
+  }, [routineCategory]);
 
   const handleSelectProduct = (prodId: number) => {
     setSelectedProductId(prodId);

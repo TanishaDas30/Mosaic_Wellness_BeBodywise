@@ -330,7 +330,12 @@ export const ReviewIntelligencePage: React.FC = () => {
                     )}
                     <span className="text-[10px] text-charcoal-400 capitalize">• Source: {rev.source}</span>
                   </div>
-                  <span className="text-[11px] text-charcoal-400">Duration Used: {rev.duration_used}</span>
+                  <div className="flex items-center space-x-2 mt-0.5">
+                    <span className="text-[10px] font-semibold text-sage-700 bg-sage-50 px-2 py-0.5 rounded-md border border-sage-200">
+                      {rev.product_name}
+                    </span>
+                    <span className="text-[11px] text-charcoal-400">• Duration Used: {rev.duration_used}</span>
+                  </div>
                 </div>
               </div>
 

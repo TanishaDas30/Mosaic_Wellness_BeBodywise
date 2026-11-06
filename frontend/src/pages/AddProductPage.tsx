@@ -6,13 +6,8 @@ import {
   Search,
   PlusCircle,
   ScanLine,
-  Camera,
-  CheckCircle2,
   AlertCircle,
-  Sparkles,
-  ArrowRight,
-  ShieldCheck,
-  FileText
+  Sparkles
 } from 'lucide-react';
 
 interface AddProductPageProps {
@@ -44,10 +39,6 @@ export const AddProductPage: React.FC<AddProductPageProps> = ({ onSuccess }) => 
   const [customTime, setCustomTime] = useState<'AM' | 'PM' | 'BOTH'>('PM');
   const [customFrequency, setCustomFrequency] = useState('Daily');
 
-  useEffect(() => {
-    loadCatalog();
-  }, [routineCategory]);
-
   const loadCatalog = async () => {
     setLoading(true);
     try {
@@ -59,6 +50,10 @@ export const AddProductPage: React.FC<AddProductPageProps> = ({ onSuccess }) => 
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadCatalog();
+  }, [routineCategory]);
 
   const handleAddCatalogProduct = async (p: Product) => {
     try {

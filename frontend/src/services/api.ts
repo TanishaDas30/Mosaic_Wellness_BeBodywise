@@ -238,6 +238,93 @@ const DEFAULT_ROUTINE: UserProduct[] = [
   { id: 5, user_id: 1, product_id: 9, is_active: true, purchased_for_concern: "Post-acne marks", application_time: "PM", frequency: "2x weekly", added_at: new Date().toISOString(), product: DEFAULT_PRODUCTS[8] }
 ];
 
+const DEFAULT_REVIEWS: ProductReview[] = [
+  {
+    id: 1,
+    product_id: 1,
+    product_name: "1% Salicylic Acid Body Wash",
+    reviewer_name: "Pooja M.",
+    rating: 4.5,
+    review_text: "Reduced my stubborn back acne within 3 weeks. It cleared up deep bumps, but can feel drying if you don't use body lotion immediately after.",
+    sentiment: "mixed",
+    aspect_tags: ["effectiveness", "acne", "dryness", "long-term results"],
+    duration_used: "3 weeks",
+    verified_purchase: true,
+    source: "official_store",
+    created_at: "2026-10-28T10:15:00.000Z"
+  },
+  {
+    id: 2,
+    product_id: 1,
+    product_name: "1% Salicylic Acid Body Wash",
+    reviewer_name: "Karan S.",
+    rating: 5.0,
+    review_text: "Great lather, fragrance free and completely cleared gym sweat breakouts. Absorbs clean without residue.",
+    sentiment: "positive",
+    aspect_tags: ["effectiveness", "acne", "fragrance", "absorption"],
+    duration_used: "2 months",
+    verified_purchase: true,
+    source: "official_store",
+    created_at: "2026-10-20T14:30:00.000Z"
+  },
+  {
+    id: 3,
+    product_id: 2,
+    product_name: "10% Lactic Acid Body Lotion",
+    reviewer_name: "Meera D.",
+    rating: 4.0,
+    review_text: "Effective for strawberry legs. My skin texture is noticeably smoother. Just don't apply right after waxing or it stings.",
+    sentiment: "mixed",
+    aspect_tags: ["effectiveness", "texture", "irritation"],
+    duration_used: "1 month",
+    verified_purchase: true,
+    source: "official_store",
+    created_at: "2026-10-25T09:20:00.000Z"
+  },
+  {
+    id: 4,
+    product_id: 5,
+    product_name: "3% Redensyl + 3% Procapil Hair Growth Serum",
+    reviewer_name: "Rahul T.",
+    rating: 4.5,
+    review_text: "Been using this every night for 3 months. Initial shedding during week 2 scared me, but by month 2 baby hairs started sprouting along my hairline. Non-greasy texture.",
+    sentiment: "positive",
+    aspect_tags: ["effectiveness", "hair fall", "texture", "long-term results", "absorption"],
+    duration_used: "3 months",
+    verified_purchase: true,
+    source: "official_store",
+    created_at: "2026-10-15T18:45:00.000Z"
+  },
+  {
+    id: 5,
+    product_id: 6,
+    product_name: "4% AHA Underarm Roll-On (Fragrance Free)",
+    reviewer_name: "Shreya K.",
+    rating: 4.8,
+    review_text: "Zero odor throughout 12-hour workday. Lightened dark friction patches after 4 weeks. No sticky feeling.",
+    sentiment: "positive",
+    aspect_tags: ["effectiveness", "pigmentation", "absorption", "long-term results"],
+    duration_used: "5 weeks",
+    verified_purchase: true,
+    source: "community",
+    created_at: "2026-10-18T11:10:00.000Z"
+  },
+  {
+    id: 6,
+    product_id: 7,
+    product_name: "Invisible Fluid SPF 50 PA++++ Mineral Sunscreen",
+    reviewer_name: "Tanvi P.",
+    rating: 4.7,
+    review_text: "Zero white cast on Indian medium-tan skin! Sits beautifully under makeup without feeling greasy.",
+    sentiment: "positive",
+    aspect_tags: ["effectiveness", "texture", "absorption"],
+    duration_used: "6 weeks",
+    verified_purchase: true,
+    source: "official_store",
+    created_at: "2026-10-12T16:05:00.000Z"
+  }
+];
+
 export const api = {
   // --- Auth ---
   async login(email: string, password: string) {
@@ -686,45 +773,70 @@ export const api = {
   },
 
   // --- Feature 3: Product Review Intelligence ---
-  async getReviews(params: any): Promise<ProductReview[]> {
+  async getReviews(params: {
+    product_id?: number | string;
+    sentiment?: string;
+    aspect?: string;
+    search?: string;
+  } = {}): Promise<ProductReview[]> {
     try {
-      const q = new URLSearchParams(params).toString();
+      const q = new URLSearchParams(params as Record<string, string>).toString();
       const res = await fetch(`${API_BASE}/reviews?${q}`, { headers: getHeaders() });
       if (res.ok) return res.json();
     } catch (e) {}
 
-    return [
-      {
-        id: 1,
-        product_id: params.product_id || 1,
-        product_name: "1% Salicylic Acid Body Wash",
-        reviewer_name: "Pooja M.",
-        rating: 4.5,
-        review_text: "Reduced my stubborn back acne within 3 weeks. It cleared up deep bumps, but can feel drying if you don't use body lotion immediately after.",
-        sentiment: "mixed",
-        aspect_tags: ["effectiveness", "acne", "dryness", "long-term results"],
-        duration_used: "3 weeks",
-        verified_purchase: true,
-        source: "official_store",
-        created_at: new Date().toISOString()
-      },
-      {
-        id: 2,
-        product_id: params.product_id || 1,
-        reviewer_name: "Karan S.",
-        rating: 5.0,
-        review_text: "Great lather, fragrance free and completely cleared gym sweat breakouts. Absorbs clean without residue.",
-        sentiment: "positive",
-        aspect_tags: ["effectiveness", "acne", "fragrance", "absorption"],
-        duration_used: "2 months",
-        verified_purchase: true,
-        source: "official_store",
-        created_at: new Date().toISOString()
+    let filtered = [...DEFAULT_REVIEWS];
+    if (params?.product_id) {
+      const pId = Number(params.product_id);
+      const matches = filtered.filter(r => r.product_id === pId);
+      if (matches.length > 0) {
+        filtered = matches;
+      } else {
+        const prod = DEFAULT_PRODUCTS.find(p => p.id === pId) || DEFAULT_PRODUCTS[0];
+        filtered = [
+          {
+            id: 100 + prod.id,
+            product_id: prod.id,
+            product_name: prod.name,
+            reviewer_name: "Sneha R.",
+            rating: 4.6,
+            review_text: `Consistently reliable results with ${prod.name}. Noticeable skin comfort and texture improvement when used as directed in my routine.`,
+            sentiment: "positive",
+            aspect_tags: ["effectiveness", "texture", "absorption"],
+            duration_used: "4 weeks",
+            verified_purchase: true,
+            source: "official_store",
+            created_at: new Date().toISOString()
+          }
+        ];
       }
-    ];
+    }
+
+    if (params?.sentiment && params.sentiment !== 'all') {
+      filtered = filtered.filter(r => r.sentiment === params.sentiment);
+    }
+    if (params?.aspect && params.aspect !== 'all') {
+      filtered = filtered.filter(r => r.aspect_tags.includes(params.aspect!));
+    }
+    if (params?.search) {
+      const s = params.search.toLowerCase();
+      filtered = filtered.filter(
+        r => r.review_text.toLowerCase().includes(s) || r.product_name.toLowerCase().includes(s)
+      );
+    }
+
+    return filtered;
   },
 
-  async submitReview(review: any): Promise<ProductReview> {
+  async submitReview(review: {
+    product_id: number;
+    rating: number;
+    review_text: string;
+    reviewer_name?: string;
+    duration_used?: string;
+    verified_purchase?: boolean;
+    source?: string;
+  }): Promise<ProductReview> {
     try {
       const res = await fetch(`${API_BASE}/reviews`, {
         method: 'POST',
@@ -734,20 +846,35 @@ export const api = {
       if (res.ok) return res.json();
     } catch (e) {}
 
-    return {
+    const targetProduct = DEFAULT_PRODUCTS.find(p => p.id === Number(review.product_id)) || DEFAULT_PRODUCTS[0];
+    const sentiment: 'positive' | 'mixed' | 'negative' =
+      review.rating >= 4 ? 'positive' : review.rating <= 2 ? 'negative' : 'mixed';
+
+    const tags: string[] = ["effectiveness", "texture", "absorption"];
+    const textLower = review.review_text.toLowerCase();
+    if (textLower.includes("dry") || textLower.includes("tight")) tags.push("dryness");
+    if (textLower.includes("acne") || textLower.includes("pimple") || textLower.includes("breakout")) tags.push("acne");
+    if (textLower.includes("sting") || textLower.includes("burn") || textLower.includes("irritat")) tags.push("irritation");
+    if (textLower.includes("hair") || textLower.includes("shed") || textLower.includes("fall")) tags.push("hair fall");
+    if (textLower.includes("dark") || textLower.includes("pigment") || textLower.includes("mark")) tags.push("pigmentation");
+
+    const newRev: ProductReview = {
       id: Date.now(),
-      product_id: review.product_id,
-      product_name: "Be Bodywise Formulation",
+      product_id: targetProduct.id,
+      product_name: targetProduct.name,
       reviewer_name: review.reviewer_name || "Verified Customer",
       rating: review.rating,
       review_text: review.review_text,
-      sentiment: review.rating >= 4 ? 'positive' : review.rating <= 2 ? 'negative' : 'mixed',
-      aspect_tags: ["effectiveness", "texture", "absorption"],
+      sentiment,
+      aspect_tags: tags,
       duration_used: review.duration_used || "1 month",
-      verified_purchase: true,
-      source: "community",
+      verified_purchase: review.verified_purchase ?? true,
+      source: review.source || "community",
       created_at: new Date().toISOString()
     };
+
+    DEFAULT_REVIEWS.unshift(newRev);
+    return newRev;
   },
 
   async getReviewIntelligence(productId: number): Promise<ReviewIntelligence> {
@@ -756,18 +883,25 @@ export const api = {
       if (res.ok) return res.json();
     } catch (e) {}
 
+    const prod = DEFAULT_PRODUCTS.find(p => p.id === Number(productId)) || DEFAULT_PRODUCTS[0];
+    const relatedRevs = DEFAULT_REVIEWS.filter(r => r.product_id === prod.id);
+    const total = relatedRevs.length > 0 ? relatedRevs.length : 14;
+    const avg = relatedRevs.length > 0
+      ? Number((relatedRevs.reduce((acc, r) => acc + r.rating, 0) / relatedRevs.length).toFixed(1))
+      : 4.6;
+
     return {
-      product_id: productId,
-      product_name: "Be Bodywise Active Formulation",
-      brand: "Be Bodywise",
-      total_reviews: 14,
-      average_rating: 4.6,
+      product_id: prod.id,
+      product_name: prod.name,
+      brand: prod.brand,
+      total_reviews: total,
+      average_rating: avg,
       sentiment_distribution: { positive_pct: 78, mixed_pct: 18, negative_pct: 4 },
       aspect_frequency: { effectiveness: 12, acne: 10, dryness: 8, texture: 6, absorption: 5 },
       common_benefits: [
-        "Reduced stubborn back acne and body breakouts within 3 weeks",
-        "Fragrance-free formula that does not sting gym sweat",
-        "Noticeably smoother stratum corneum skin texture"
+        `Targeted active ingredients deliver noticeable results for ${prod.subcategory || 'skin barrier'}.`,
+        "Formulated without fragrance; comfortable on compromised skin.",
+        "Smooth stratum corneum texture observed after consistent use."
       ],
       common_drawbacks: [
         "Skin feels tight or dry if lotion is not applied immediately after shower",
