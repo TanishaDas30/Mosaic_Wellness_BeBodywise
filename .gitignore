@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+
+# Production Builds
+dist/
+build/
+.output/
+
+# Environment Variables & Local Secrets
+.env
+.env.local
+.env.*.local
+
+# Databases & Runtime Logs
+*.db
+*.sqlite3
+*.log
+.system_generated/
+.tmp/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
