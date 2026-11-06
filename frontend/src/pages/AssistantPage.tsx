@@ -23,6 +23,8 @@ interface ChatMessage {
   followups?: string[];
   disclaimer?: string;
   timestamp: string;
+  source?: 'gemini' | 'fallback';
+  model?: string;
 }
 
 export const AssistantPage: React.FC = () => {
@@ -30,6 +32,7 @@ export const AssistantPage: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
+  const [geminiHealth, setGeminiHealth] = useState<{ connected: boolean; configured: boolean; model: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const sampleQuestions = [
@@ -63,6 +66,16 @@ export const AssistantPage: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading]);
 
+  useEffect(() => {
+    const fetchHealth = async () => {
+      try {
+        const h = await api.checkGeminiHealth();
+        setGeminiHealth({ connected: h.connected, configured: h.configured, model: h.model });
+      } catch (e) {}
+    };
+    fetchHealth();
+  }, []);
+
   const handleSendMessage = async (textToSend?: string) => {
     const q = textToSend || inputText;
     if (!q.trim()) return;
@@ -88,6 +101,8 @@ export const AssistantPage: React.FC = () => {
         followups: res.suggested_followups,
         disclaimer: res.non_diagnostic_notice,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        source: res.source,
+        model: res.model,
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err: any) {
@@ -126,9 +141,18 @@ export const AssistantPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="hidden sm:flex items-center space-x-2 text-xs text-sage-800 bg-sage-50 px-3 py-1.5 rounded-2xl border border-sage-200">
-          <ShieldCheck className="w-4 h-4 text-sage-600" />
-          <span>Non-Diagnostic Disclaimer Active</span>
+        <div className="flex items-center space-x-2">
+          {geminiHealth?.connected ? (
+            <div className="flex items-center space-x-1.5 text-xs text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-2xl border border-emerald-200 font-semibold shadow-xs">
+              <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Google Gemini {geminiHealth.model} Live</span>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-1.5 text-xs text-sage-800 bg-sage-50 px-3 py-1.5 rounded-2xl border border-sage-200 font-medium">
+              <ShieldCheck className="w-3.5 h-3.5 text-sage-600" />
+              <span>Offline Formulation Engine</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -175,6 +199,18 @@ export const AssistantPage: React.FC = () => {
                       : 'bg-ivory-50 text-charcoal-900 border border-sage-200 rounded-tl-xs shadow-xs font-sans whitespace-pre-line'
                   }`}
                 >
+                  {!isUser && m.source === 'gemini' && (
+                    <div className="mb-2 pb-1.5 border-b border-sage-200 flex items-center space-x-1 text-[10px] text-emerald-800 font-bold uppercase tracking-wider">
+                      <Sparkles className="w-3 h-3 text-emerald-600" />
+                      <span>Google Gemini • {m.model || 'Flash'}</span>
+                    </div>
+                  )}
+                  {!isUser && m.source === 'fallback' && (
+                    <div className="mb-2 pb-1.5 border-b border-sage-200 flex items-center space-x-1 text-[10px] text-charcoal-500 font-bold uppercase tracking-wider">
+                      <ShieldCheck className="w-3 h-3 text-charcoal-500" />
+                      <span>Offline Formulation Engine</span>
+                    </div>
+                  )}
                   {m.text}
                 </div>
 

@@ -9,7 +9,8 @@ import {
   TimelineEntry,
   AssistantResponse,
   OCRResult,
-  AdminAnalytics
+  AdminAnalytics,
+  GeminiHealthStatus
 } from '../types';
 
 // Supports optional custom backend URL (e.g. Render / Railway / Localhost)
@@ -985,7 +986,24 @@ export const api = {
         "Am I using too many exfoliating ingredients?",
         "What should I check before adding another product?"
       ],
-      non_diagnostic_notice: "SkinSense provides formulation pharmacology insights and does not provide medical diagnoses or replace consultations with licensed dermatologists."
+      non_diagnostic_notice: "SkinSense provides formulation pharmacology insights and does not provide medical diagnoses or replace consultations with licensed dermatologists.",
+      source: 'fallback',
+      model: 'client-offline'
+    };
+  },
+
+  async checkGeminiHealth(): Promise<GeminiHealthStatus> {
+    try {
+      const res = await fetch(`${API_BASE}/health/gemini`);
+      if (res.ok) return res.json();
+    } catch (e) {}
+
+    return {
+      status: 'not_configured',
+      configured: false,
+      connected: false,
+      model: 'gemini-2.5-flash',
+      message: 'Backend server is running in local offline mode.'
     };
   },
 

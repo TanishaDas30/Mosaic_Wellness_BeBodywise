@@ -252,6 +252,18 @@ class AssistantResponse(BaseModel):
     citations: List[Dict[str, str]]
     suggested_followups: List[str]
     non_diagnostic_notice: str
+    source: Optional[str] = "gemini"  # "gemini" or "fallback"
+    model: Optional[str] = None
+    error: Optional[str] = None
+
+class GeminiHealthResponse(BaseModel):
+    status: str
+    configured: bool
+    connected: bool
+    model: str
+    message: str
+    error: Optional[str] = None
+    sample_output: Optional[str] = None
 
 
 # --- OCR Schemas ---

@@ -168,6 +168,19 @@ export interface AssistantResponse {
   citations: { source: string; details: string }[];
   suggested_followups: string[];
   non_diagnostic_notice: string;
+  source?: 'gemini' | 'fallback';
+  model?: string;
+  error?: string;
+}
+
+export interface GeminiHealthStatus {
+  status: 'connected' | 'not_configured' | 'error' | 'empty_response';
+  configured: boolean;
+  connected: boolean;
+  model: string;
+  message: string;
+  error?: string;
+  sample_output?: string;
 }
 
 export interface OCRResult {

@@ -56,8 +56,21 @@ chat_data = chat_res.json()
 print("[PASS] AI Assistant OK:")
 print("  - Response snippet:", chat_data["response"][:90], "...")
 print("  - Citations:", [c["source"] for c in chat_data["citations"]])
+print("  - Source Engine:", chat_data.get("source"))
+print("  - Model Identified:", chat_data.get("model"))
 
-# 6. Test Admin Analytics
+# 6. Test Gemini Health Connectivity Endpoint
+health_res = client.get("/api/health/gemini")
+assert health_res.status_code == 200
+health_data = health_res.json()
+print("[PASS] Gemini Health Endpoint OK:")
+print("  - Status:", health_data.get("status"))
+print("  - Configured:", health_data.get("configured"))
+print("  - Connected:", health_data.get("connected"))
+print("  - Target Model:", health_data.get("model"))
+print("  - Message:", health_data.get("message"))
+
+# 7. Test Admin Analytics
 admin_login = client.post("/api/auth/login", json={"email": "admin@skinsense.ai", "password": "admin1234"})
 admin_token = admin_login.json()["access_token"]
 admin_res = client.get("/api/admin/analytics", headers={"Authorization": f"Bearer {admin_token}"})

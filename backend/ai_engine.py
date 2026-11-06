@@ -1,10 +1,19 @@
 import os
 import re
 import json
-import httpx
-from typing import Dict, List, Any, Optional
+import logging
+from typing import Dict, List, Any, Optional, Tuple
+from dotenv import load_dotenv
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+# Load .env securely from backend folder or project root
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+load_dotenv()
+
+from google import genai
+from google.genai import types
+
+logger = logging.getLogger("skinsense.gemini")
 
 # --- Comprehensive Ingredient Knowledge Base ---
 INGREDIENT_KNOWLEDGE_BASE = {
@@ -129,35 +138,126 @@ INGREDIENT_KNOWLEDGE_BASE = {
 }
 
 
-# --- Call Gemini API or fallback helper ---
-async def call_llm(prompt: str, system_instruction: str = "") -> Optional[str]:
-    """Call Google Gemini API if key is present; returns None on failure or missing key."""
-    if not GEMINI_API_KEY:
+# --- Dynamic Gemini Configuration & Official SDK Helper ---
+def get_gemini_api_key() -> str:
+    """Read API key dynamically from environment."""
+    return os.environ.get("GEMINI_API_KEY", "").strip()
+
+def get_gemini_model() -> str:
+    """
+    Read model name from GEMINI_MODEL environment variable.
+    Defaults to the current stable Flash model: gemini-2.5-flash.
+    """
+    return os.environ.get("GEMINI_MODEL", "gemini-2.5-flash").strip()
+
+def get_genai_client(api_key: Optional[str] = None) -> Optional[genai.Client]:
+    """Instantiate Google Gen AI SDK Client."""
+    key = api_key if api_key is not None else get_gemini_api_key()
+    if not key:
         return None
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
-        payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {"text": f"System Context:\n{system_instruction}\n\nUser Request:\n{prompt}"}
-                    ]
-                }
-            ],
-            "generationConfig": {
-                "temperature": 0.2,
-                "maxOutputTokens": 1500
-            }
-        }
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(url, json=payload)
-            if resp.status_code == 200:
-                data = resp.json()
-                text = data["candidates"][0]["content"]["parts"][0]["text"]
-                return text
+        return genai.Client(api_key=key)
     except Exception as e:
-        print(f"Gemini API call failed: {e}")
-    return None
+        logger.error(f"Failed to initialize Google Gen AI Client: {e}")
+        return None
+
+def sanitize_error(err_str: str) -> str:
+    """Ensure no API key or sensitive credentials are ever leaked in error messages or logs."""
+    key = get_gemini_api_key()
+    if key and key in err_str:
+        err_str = err_str.replace(key, "[REDACTED_API_KEY]")
+    err_str = re.sub(r'key=[A-Za-z0-9_-]{20,}', 'key=[REDACTED]', err_str)
+    return err_str
+
+async def check_gemini_connection(api_key: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Test live connectivity to Gemini API without exposing the secret key.
+    Used for backend health-check endpoint: /api/health/gemini
+    """
+    key = api_key if api_key is not None else get_gemini_api_key()
+    model = get_gemini_model()
+    
+    if not key:
+        return {
+            "status": "not_configured",
+            "configured": False,
+            "connected": False,
+            "model": model,
+            "message": "GEMINI_API_KEY environment variable is not configured. AI engine is operating in local clinical fallback mode."
+        }
+    
+    try:
+        client = genai.Client(api_key=key)
+        response = await client.aio.models.generate_content(
+            model=model,
+            contents="Confirm Be Bodywise product intelligence connectivity in 3 words.",
+            config=types.GenerateContentConfig(
+                temperature=0.1,
+                max_output_tokens=30
+            )
+        )
+        if response and response.text:
+            return {
+                "status": "connected",
+                "configured": True,
+                "connected": True,
+                "model": model,
+                "message": "Gemini API connection successful.",
+                "sample_output": response.text.strip()
+            }
+        else:
+            return {
+                "status": "empty_response",
+                "configured": True,
+                "connected": False,
+                "model": model,
+                "message": "Gemini responded with empty content."
+            }
+    except Exception as e:
+        safe_msg = sanitize_error(str(e))
+        logger.error(f"Gemini health check failed: {safe_msg}")
+        return {
+            "status": "error",
+            "configured": True,
+            "connected": False,
+            "model": model,
+            "error": safe_msg,
+            "message": "Gemini connection failed."
+        }
+
+async def call_llm(prompt: str, system_instruction: str = "") -> Tuple[Optional[str], Optional[str]]:
+    """
+    Call Google Gemini using official google-genai SDK.
+    Returns (response_text, error_message).
+    If key is missing or call fails, returns (None, error_str).
+    """
+    key = get_gemini_api_key()
+    if not key:
+        return None, "GEMINI_API_KEY environment variable is not configured."
+    
+    model = get_gemini_model()
+    client = get_genai_client(key)
+    if not client:
+        return None, "Unable to initialize Gen AI client."
+    
+    try:
+        config = types.GenerateContentConfig(
+            system_instruction=system_instruction if system_instruction else None,
+            temperature=0.2,
+            max_output_tokens=1500
+        )
+        response = await client.aio.models.generate_content(
+            model=model,
+            contents=prompt,
+            config=config
+        )
+        if response and response.text:
+            return response.text.strip(), None
+        return None, "Empty response returned by Gemini."
+    except Exception as e:
+        safe_err = sanitize_error(str(e))
+        logger.error(f"Gemini API generation failed ({model}): {safe_err}")
+        return None, safe_err
 
 
 # --- 1. AI Product Experience Intelligence ---
@@ -388,7 +488,7 @@ async def analyze_product_experience(
     IMPORTANT: Do NOT make medical diagnoses or claim a product caused a reaction with certainty. Use cautious, evidence-based language ('Observations suggest', 'Possible explanations include').
     """
     
-    llm_result = await call_llm(llm_prompt, "You are an expert dermatological formulation analyst for SkinSense Be Bodywise.")
+    llm_result, _ = await call_llm(llm_prompt, "You are an expert dermatological formulation analyst for SkinSense Be Bodywise.")
     if llm_result:
         try:
             # clean json markdown formatting if present
@@ -396,8 +496,8 @@ async def analyze_product_experience(
             cleaned = re.sub(r"```$", "", cleaned.strip(), flags=re.MULTILINE)
             data = json.loads(cleaned)
             return data
-        except Exception:
-            pass
+        except Exception as json_err:
+            logger.warning(f"JSON parsing of Gemini experience output failed: {json_err}")
 
     return {
         "primary_concern": extracted_concern,
@@ -859,11 +959,26 @@ async def generate_assistant_response(
     - Keep tone premium, calm, and trustworthy.
     """
 
-    llm_answer = await call_llm(llm_prompt, "You are SkinSense Be Bodywise Senior Product Intelligence Specialist.")
+    llm_answer, llm_error = await call_llm(
+        llm_prompt,
+        "You are SkinSense Be Bodywise Senior Product Intelligence Specialist. Provide empathetic, evidence-based ingredient and routine pharmacology advice without making medical diagnoses."
+    )
     
     if llm_answer:
         response_text = llm_answer
+        source = "gemini"
+        model_used = get_gemini_model()
+        error_details = None
+        if not citations:
+            citations.append({
+                "source": "Be Bodywise Product Intelligence Network",
+                "details": f"Generated via Google GenAI ({model_used}) using personalized formulation context."
+            })
     else:
+        source = "fallback"
+        model_used = "offline-clinical-rules"
+        error_details = llm_error
+        logger.info(f"AI Assistant operating in fallback mode: {llm_error}")
         # High quality fallback generation
         if "dry" in q_lower:
             response_text = (
@@ -932,5 +1047,8 @@ async def generate_assistant_response(
         "response": response_text,
         "citations": citations,
         "suggested_followups": [f for f in followups if f.lower() not in q_lower][:3],
-        "non_diagnostic_notice": "SkinSense provides ingredient pharmacology and routine compatibility insights. It does not provide medical diagnoses or replace consultations with certified dermatologists or trichologists."
+        "non_diagnostic_notice": "SkinSense provides ingredient pharmacology and routine compatibility insights. It does not provide medical diagnoses or replace consultations with certified dermatologists or trichologists.",
+        "source": source,
+        "model": model_used,
+        "error": error_details
     }

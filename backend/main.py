@@ -2,6 +2,13 @@ import os
 import json
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
+from dotenv import load_dotenv
+
+# Load .env from backend folder or project root
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+load_dotenv()
+
 from fastapi import FastAPI, Depends, HTTPException, status, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -44,6 +51,19 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# =====================================================================
+# GEMINI AI CONNECTIVITY & HEALTH CHECK
+# =====================================================================
+
+@app.get("/api/health/gemini", response_model=schemas.GeminiHealthResponse)
+async def health_gemini():
+    """
+    Check whether GEMINI_API_KEY is configured and test live API connectivity.
+    Never exposes credentials or secrets.
+    """
+    return await ai_engine.check_gemini_connection()
 
 
 # =====================================================================
